@@ -6,20 +6,24 @@ serves as a simple example of including a new Helper in the plugin.
 
 # Installation
 
-Require the gem in Foreman, and also Deface, in `bundler.d/Gemfile.local.rb`:
+Require the gem in Foreman (you may need extra dependencies such as libxml or libxslt
+to build the nokogiri dependency)
 
 ```yaml
-gem 'foreman_column_view', :git => "https://github.com/GregSutcliffe/foreman_column_view.git"
+gem 'foreman_column_view'
 ```
 
 Update Foreman with the new gems:
 
-    bundle update
+    bundle update foreman_column_view
 
 # Configuration
 
 By default the plugin will display the Domain associated by each host. This is not
-massively useful. To set your own choice of column, add this to Foreman's config file
+massively useful. To set your own choice of column, add this to Foreman's plugin config file
+`foreman_column_view.yaml`. For package based installs this should be in
+`/etc/foreman/plugins/foreman_column_view.yaml`. For source installs this should be in
+`config/settings.plugins.d` within your install directory.
 
 ```yaml
 :column_view:
@@ -34,8 +38,8 @@ massively useful. To set your own choice of column, add this to Foreman's config
 ```
 
 `title` is an arbitrary string which is displayed as the column header. `content` is
-a method call to the `Host` object, using `host.send`. You can also access `Hash` objects
-as well:
+a method call to the `Host` object, using `host.send`. In these examples `facts_hash`
+and `params` are method calls to `Host` returning hash values.
 
 ```yaml
 :column_view:
@@ -47,20 +51,48 @@ as well:
     :title: Uptime
     :after: architecture
     :content: facts_hash['uptime']
+  :color:
+    :title: Color
+    :after: last_report
+    :content: params['favorite_color']
+
 ```
 
 Additional rows can also be added to the Properties table on the host page by setting
-`:view: hosts_properties`.  The position is also controlled by `:after` using either a
+`:view: :hosts_properties`.  The position is also controlled by `:after` using either a
 numeric index to represent the row or the name of the previous row (however this will
 not work well when the Foreman language is switched).  An example configuration:
 
 ```yaml
+:column_view:
   :uptime:
     :title: Uptime
     :after: 6
     :content: facts_hash['uptime']
     :view: :hosts_properties
 ```
+
+If you need to add information not readily available in a host, you can add information that
+will be evaluated on runtime by adding `:eval_content: true` to your additional row.
+Also, some times you do not want to show the additional row if a certain condition is not met,
+in order to show that row conditionally, add `:conditional: :condition_symbol` to your configuration,
+and that conditional will be executed on your host.
+
+As an example, the following yaml shows a link to a custom URL if the method host.bmc_available? is true.
+
+```yaml
+  :console:
+    :title: Console
+    :after: 0
+    :content: link_to(_("Console"), "https://#{host.interfaces.first.name}.domainname", { :class => "btn btn-info" } )
+    :conditional: :bmc_available?
+    :eval_content: true
+    :view: :hosts_properties
+```
+
+If your conditional method needs arguments to work, the arguments should go after the method name separated by
+spaces, as in `:custom_method arg1 arg2`
+
 
 You will need to restart Foreman for changes to take effect, as the `settings.yaml` is
 only read at startup.
